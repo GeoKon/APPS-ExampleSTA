@@ -18,8 +18,7 @@
             bp->add( fileList().c_str() );
         else
             PRN( fileList().c_str() );
-    }
-    
+    }    
     CMDTABLE mypTable[]= // must be external to be able to used by the cliSupport
     {
         {"h",       "Help! List of all commands",          help  },

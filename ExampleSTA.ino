@@ -42,23 +42,14 @@ void setup()
     cpu.init(); 
     ASSERT( SPIFFS.begin() );
 
-    initEEParms();
+    myp.initAllParms( 0x3456/*Magic number*/);
 
     exe.registerTable( mypTable );               // register CLI tables
     exe.registerTable( eepTable ); 
     exe.printTables( "See all tables" );  
 
-    cli.init( ECHO_ON, "cmd: " );               // prepare CLI
-
-    PF( "----- For CLI, press CR within %dsec\r\n", CLI_WAITSEC );
-
-    for( int i=0; i<CLI_WAITSEC*100; i++ )
-    {
-        if( (i%100)==0 ) PR(".");
-        if( Serial.read() == 0x0D )
-            interactForever();
-        delay(10);
-    }
+    startCLIAfter( 10 /*sec*/ );                // prepare CLI
+    
     setupSTA();
     srvCallbacks( server, Landing_STA_Page );   // standard WEB callbacks. "staLanding" is /. HTML page
     cliCallbacks( server, buffer );             // enable WEB CLI with buffer specified
@@ -67,35 +58,16 @@ void setup()
     server.begin( 80 );                         // start the server
     PRN("HTTP server started.");
     
-    cli.init( ECHO_ON, "cmd: " );
+    cli.prompt();
 }
 
 void loop()
 {
-    if( cli.ready() )               // handle serial interactions
+    if( cli.ready() )                           // handle serial interactions
     {
         char *p = cli.gets();
         exe.dispatchConsole( p );
         cli.prompt();                
     }
     server.handleClient();    
-}
-
-// ------------------- initialize eeprom parms --------------------------------------
-#define myMAGIC 0xBABE
-void initEEParms()
-{
-    if( !eep.checkEEParms( myMAGIC, myp.bsize ) )      // fetches parameters and returns TRUE or FALSE
-    {
-        PF("=== Initializing parms!\r\n" );
-        eep.initHeadParms( myMAGIC, myp.bsize );        // initialize header parameters AND save them in eeprom
-        eep.initWiFiParms();                            // initialize with default WiFi AND save them in eeprom
-        
-        myp.initMyParms( true );                        // initialize named parameters AND save them in EEPROM
-        PF("AFTER INITIALIZATION\r\n");
-    }
-    eep.incrBootCount();
-    myp.fetchMyParms();                                 // retrieve parameters from EEPROM
-    eep.printHeadParms("--- Current Head Parms");       // print current parms
-    eep.printWiFiParms("--- Current WiFi Parms");                 
 }
