@@ -33,9 +33,6 @@
            
 // ------ Forward References (located in this module --------------------------
     
-    void setupSTA();
-    void initEEParms();
-
 // ----------------------------- Main Setup -----------------------------------
 void setup() 
 {
@@ -51,6 +48,7 @@ void setup()
     startCLIAfter( 10 /*sec*/ );                // prepare CLI
     
     setupSTA();
+    
     srvCallbacks( server, Landing_STA_Page );   // standard WEB callbacks. "staLanding" is /. HTML page
     cliCallbacks( server, buffer );             // enable WEB CLI with buffer specified
 
