@@ -12,15 +12,14 @@
     
     #include <FS.h>
 
-    #include "cliHandlers.h"        // in this local directory
-    #include "Globals.h"            // in this local directory
     #include "eepTable.h"           // in GKE-L2
     #include "SimpleSRV.h"          // in GKE-Lw
     #include "SimpleSTA.h"          // in GKE-Lw
-    #include <externIO.h>           // external definitions and headers for cpu..eep
-
-#define CLI_WAITSEC 10              // how long to wait before RETURN is sensed for CLI
-#define WIFI_TIMEOUT_SEC 5      
+    #include "CommonCLI.h"          // in GKE-Lw
+    #include "myCLIHandlers.h"      // in this application
+    #include "myGlobals.h"          // in this application
+        
+    #define CLI_WAITSEC 10          // how long to wait before RETURN is sensed for CLI
 
 // ---------- allocation of classes used in this application ------------------
     CPU cpu;
@@ -29,25 +28,28 @@
     EEP eep;
     ESP8266WebServer server(80);   
     
-    BUF buffer(1024);           // cli buffer used by cliCallbacks()
+    BUF buffer(2048);                           // cli buffer 
            
 // ------ Forward References (located in this module --------------------------
     
 // ----------------------------- Main Setup -----------------------------------
 void setup() 
 {
+    int runcount = setjmp( myp.env );            // env is allocated in IGlobals
     cpu.init(); 
     ASSERT( SPIFFS.begin() );
 
-    myp.initAllParms( 0x3456/*Magic number*/);
+    myp.initAllParms();
 
-    exe.registerTable( mypTable );               // register CLI tables
+    exe.initTables();                            // clear all tables
+    linkParms2cmnTable( &myp );
+    exe.registerTable( mypTable );               // register common CLI tables
     exe.registerTable( eepTable ); 
+    exe.registerTable( cmnTable );               // register common CLI tables
     exe.printTables( "See all tables" );  
 
-    startCLIAfter( 10 /*sec*/ );                // prepare CLI
-    
-    setupSTA();
+    startCLIAfter( CLI_WAITSEC, &buffer );      // prepare CLI
+    setupWiFi();                                // setup WiFi. If AP not found, do SmartConfig
     
     srvCallbacks( server, Landing_STA_Page );   // standard WEB callbacks. "staLanding" is /. HTML page
     cliCallbacks( server, buffer );             // enable WEB CLI with buffer specified
@@ -61,11 +63,18 @@ void setup()
 
 void loop()
 {
-    if( cli.ready() )                           // handle serial interactions
+    if( cli.ready() )                   // handle serial interactions
     {
-        char *p = cli.gets();
-        exe.dispatchConsole( p );
-        cli.prompt();                
+        exe.dispatchBuf( cli.gets(), buffer );
+        buffer.print();
+        cli.prompt();
     }
-    server.handleClient();    
+    if( checkWiFi() )                  // Good WiFi connection?
+    {    
+         server.handleClient();
+    }
+    else                               // no WiFi connection
+    {        
+        reconnectWiFi();               // if necessary, add callback() here
+    }
 }
